@@ -1,6 +1,6 @@
-# gevolution-1.1
+# gevolution-1.1gpu
 
-Copyright (c) 2015-2016 Julian Adamek
+Copyright (c) 2015-2017 Julian Adamek
 (Université de Genève & Observatoire de Paris)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
