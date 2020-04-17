@@ -164,13 +164,62 @@ void prepareFTsource(Field<FieldType> & phi, Field<FieldType> & Tij, Field<Field
 //////////////////////////
 
 template <class FieldType>
-void prepareFTsource(Field<FieldType> & phi, Field<FieldType> & chi, Field<FieldType> & source, const FieldType bgmodel, Field<FieldType> & result, const double coeff, const double coeff2, const double coeff3)
+void prepareFTsource(Field<FieldType> * phi, Field<FieldType> * chi, Field<FieldType> * source, const FieldType bgmodel, Field<FieldType> * result, const double coeff, const double coeff2, const double coeff3)
 {
-	Site x(phi.lattice());
+	Site x(phi->lattice());
+//	Site y(phi.lattice());
+
+//	Field<Real> *  dummy = &source;
+	/*dummy.initialize(source.lattice(), 1, MEM_GPU);
+	dummy.alloc();
 	
 	for (x.first(); x.test(); x.next())
-	{
-		result(x) = coeff2 * (source(x) - bgmodel);
+		dummy(x) = source(x);*/
+
+//	source.h2d();
+
+//y.create_device();
+result->h2d();
+phi->h2d();
+chi->h2d();
+/*double T00 = 0.;
+                        #pragma acc parallel present((&source)[0:1], (&source)->data_[0:(&source)->data_memSize_], y)
+                        {
+                        //forallsites_start(x)
+                        #pragma acc loop collapse(3) private(y.index_)
+                        for (int iiii = y.lattice().halo(); iiii < y.lattice().sizeLocal(0)+y.lattice().halo(); iiii++)
+                        {
+                                for (int jjjj = y.lattice().halo(); jjjj < y.lattice().sizeLocal(1)+y.lattice().halo(); jjjj++)
+                                {
+                                        for (int kkkk = y.lattice().halo(); kkkk < y.lattice().sizeLocal(2)+y.lattice().halo(); kkkk++)
+                                        {
+                                                 y.setIndex(iiii + (y.lattice().sizeLocal(0)+2*y.lattice().halo())*(jjjj + (y.lattice().sizeLocal(1)+2*y.lattice().halo())*kkkk));
+				T00 += source.lattice().sizeLocal(0);
+					}
+				}
+			}}
+
+	COUT << " T00 = " << T00 << endl;
+	y.delete_device();*/
+
+ x.create_device();
+                        int hhhh = x.lattice().halo();
+                        int ssLL0 = x.lattice().sizeLocal(0);
+                        int ssLL1 = x.lattice().sizeLocal(1);
+                        int ssLL2 = x.lattice().sizeLocal(2);
+                        #pragma acc parallel present(phi[0:1], phi->data_[0:phi->data_memSize_], chi[0:1], chi->data_[0:chi->data_memSize_], result[0:1], result->data_[0:result->data_memSize_], x)
+                        {
+                        #pragma acc loop collapse(3) private(x.index_)
+                        for (int iiii = hhhh; iiii < ssLL0+hhhh; iiii++)
+                        {
+                                for (int jjjj = hhhh; jjjj < ssLL1+hhhh; jjjj++)
+                                {
+                                        for (int kkkk = hhhh; kkkk < ssLL2+hhhh; kkkk++)
+                                        {
+                                                 x.setIndex(iiii + (ssLL0+2*hhhh)*(jjjj + (ssLL1+2*hhhh)*kkkk));
+//	for (x.first(); x.test(); x.next())
+//	{
+		(*result)(x) = coeff2 * ((*result)(x) - bgmodel);
 #ifdef PHINONLINEAR
 #ifdef ORIGINALMETRIC
 		result(x) *= 1. - 4. * phi(x);
@@ -178,14 +227,17 @@ void prepareFTsource(Field<FieldType> & phi, Field<FieldType> & chi, Field<Field
 		result(x) -= 0.375 * (phi(x-1) - phi(x+1)) * (phi(x-1) - phi(x+1));
 		result(x) -= 0.375 * (phi(x-2) - phi(x+2)) * (phi(x-2) - phi(x+2));
 #else
-		result(x) *= 1. - 2. * phi(x);
-		result(x) += 0.125 * (phi(x-0) - phi(x+0)) * (phi(x-0) - phi(x+0));
-		result(x) += 0.125 * (phi(x-1) - phi(x+1)) * (phi(x-1) - phi(x+1));
-		result(x) += 0.125 * (phi(x-2) - phi(x+2)) * (phi(x-2) - phi(x+2));
+		(*result)(x) *= 1. - 2. * (*phi)(x);
+		(*result)(x) += 0.125 * ((*phi)(x-0) - (*phi)(x+0)) * ((*phi)(x-0) - (*phi)(x+0));
+		(*result)(x) += 0.125 * ((*phi)(x-1) - (*phi)(x+1)) * ((*phi)(x-1) - (*phi)(x+1));
+		(*result)(x) += 0.125 * ((*phi)(x-2) - (*phi)(x+2)) * ((*phi)(x-2) - (*phi)(x+2));
 #endif
 #endif
-		result(x) += (coeff3 - coeff) * phi(x) - coeff3 * chi(x);
-	}
+		(*result)(x) += (coeff3 - coeff) * (*phi)(x) - coeff3 * (*chi)(x);
+}}}}
+x.delete_device();
+result->d2h();
+	//}
 }
 
 

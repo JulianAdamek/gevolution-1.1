@@ -209,9 +209,9 @@ int main(int argc, char **argv)
 	Field<Cplx> scalarFT;
 	Field<Cplx> SijFT;
 	Field<Cplx> BiFT;
-	source.initialize(lat,1);
-	phi.initialize(lat,1);
-	chi.initialize(lat,1);
+	source.initialize(lat,1,MEM_GPU);
+	phi.initialize(lat,1,MEM_GPU);
+	chi.initialize(lat,1,MEM_GPU);
 	scalarFT.initialize(latFT,1);
 	PlanFFT<Cplx> plan_source(&source, &scalarFT);
 	PlanFFT<Cplx> plan_phi(&phi, &scalarFT);
@@ -426,8 +426,35 @@ int main(int argc, char **argv)
 		if (sim.gr_flag > 0)
 		{	
 			T00hom = 0.;
-			for (x.first(); x.test(); x.next())
+			//for (x.first(); x.test(); x.next())
+			source.h2d();
+			x.create_device();
+			int hhhh = x.lattice().halo();
+                        int ssLL0 = x.lattice().sizeLocal(0);
+                        int ssLL1 = x.lattice().sizeLocal(1);
+                        int ssLL2 = x.lattice().sizeLocal(2);
+			#pragma acc parallel present(source, source.data_[0:source.data_memSize_], x)
+			{
+			//forallsites_start(x)
+/*			int hhhh = x.lattice().halo();
+			int ssLL0 = x.lattice().sizeLocal(0);
+			int ssLL1 = x.lattice().sizeLocal(1);
+			int ssLL2 = x.lattice().sizeLocal(2);*/
+			#pragma acc loop collapse(3) private(x.index_)
+			for (int iiii = hhhh; iiii < ssLL0+hhhh; iiii++)
+			{
+				for (int jjjj = hhhh; jjjj < ssLL1+hhhh; jjjj++)
+				{
+					for (int kkkk = hhhh; kkkk < ssLL2+hhhh; kkkk++)
+					{
+						 x.setIndex(iiii + (ssLL0+2*hhhh)*(jjjj + (ssLL1+2*hhhh)*kkkk));
 				T00hom += source(x);
+					}
+				}
+			}
+			//forallsites_stop(x)
+			}
+			x.delete_device();
 			parallel.sum<Real>(T00hom);
 			T00hom /= (Real) numpts3d;
 			
@@ -438,7 +465,7 @@ int main(int argc, char **argv)
 			
 			if (dtau_old > 0.)
 			{
-				prepareFTsource<Real>(phi, chi, source, cosmo.Omega_cdm + cosmo.Omega_b + bg_ncdm(a, cosmo), source, 3. * Hconf(a, fourpiG, cosmo) * dx * dx / dtau_old, fourpiG * dx * dx / a, 3. * Hconf(a, fourpiG, cosmo) * Hconf(a, fourpiG, cosmo) * dx * dx);  // prepare nonlinear source for phi update
+				prepareFTsource<Real>(&phi, &chi, &source, cosmo.Omega_cdm + cosmo.Omega_b + bg_ncdm(a, cosmo), &source, 3. * Hconf(a, fourpiG, cosmo) * dx * dx / dtau_old, fourpiG * dx * dx / a, 3. * Hconf(a, fourpiG, cosmo) * Hconf(a, fourpiG, cosmo) * dx * dx);  // prepare nonlinear source for phi update
 
 #ifdef BENCHMARK
 				ref2_time= MPI_Wtime();
